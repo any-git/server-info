@@ -28,17 +28,23 @@ def ss(link):
 
 
 def get_info(ip):
-    return requests.get(f"http://ipinfo.io/{ip}/json", timeout=50).json()
+    return requests.get(f"http://ipinfo.io/{ip}/json", timeout=5).json()
 
+
+st.title("Link Processor and Search")
 
 url = st.text_input("URL")
 
 if url:
     orgs = set()
-    results = set()
-    req = requests.get(url, timeout=50)
-    content = req.text
-    items = content.splitlines()
+    countries = set()
+    results = []
+    if url.startswith("http://") or url.startswith("https://"):
+        req = requests.get(url, timeout=50)
+        content = req.text
+        items = content.splitlines()
+    else:
+        items = url.split()
 
     for item in items:
         if item.startswith("vmess://"):
@@ -52,17 +58,33 @@ if url:
         info = get_info(ip)
         org = info["org"]
         country = info["country"]
-        if org not in orgs:
-            orgs.add(org)
-        results.add({"link": item, "org": org, "country": country})
+        orgs.add(org)
+        countries.add(country)
+        results.append({"link": item, "org": org, "country": country})
 
-    cont = st.container()
-    cont.write("Đã xong! Hãy mở thanh bên để kiểm tra.")
+    st.write(f"Processed {len(results)} links")
 
-    with st.sidebar:
-        for org in orgs:
-            if st.button(org):
-                for result in results:
-                    if result["org"] == org:
-                        cont.write(result["country"])
-                        cont.code(result["link"])
+    # Search functionality
+    st.sidebar.header("Search")
+    search_org = st.sidebar.selectbox("Select Organization", ["All"] + list(orgs))
+    search_country = st.sidebar.selectbox("Select Country", ["All"] + list(countries))
+
+    # Filter results
+    filtered_results = results
+    if search_org != "All":
+        filtered_results = [r for r in filtered_results if r["org"] == search_org]
+    if search_country != "All":
+        filtered_results = [
+            r for r in filtered_results if r["country"] == search_country
+        ]
+
+    # Display results
+    st.header("Results")
+    for result in filtered_results:
+        st.write(f"Organization: {result['org']}")
+        st.write(f"Country: {result['country']}")
+        st.code(result["link"])
+        st.markdown("---")
+
+else:
+    st.write("Please enter a URL to process.")
