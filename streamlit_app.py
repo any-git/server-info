@@ -49,7 +49,6 @@ def get_ip(address):
 
 def get_info(ip):
     res_info = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
-    st.code(res_info)
     return res_info
 
 
