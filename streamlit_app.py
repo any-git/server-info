@@ -25,10 +25,10 @@ def ss(link):
     parsed = urlparse(link)
     if parsed.netloc:
         # If netloc is present, the address is after the '@'
-        parts = parsed.netloc.split('@')
+        parts = parsed.netloc.split("@")
         if len(parts) > 1:
-            return parts[1].split(':')[0]
-    
+            return parts[1].split(":")[0]
+
     # If we couldn't find the address, try decoding
     try:
         inf = link.replace("ss://", "")
@@ -37,7 +37,8 @@ def ss(link):
         ipport = decoded.split("@")[1]
         return ipport.split(":")[0]
     except:
-        # If decoding 
+        return "0.0.0.0"
+
 
 def get_ip(address):
     try:
