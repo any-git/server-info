@@ -28,7 +28,7 @@ def ss(link):
 
 
 def get_info(ip):
-    return requests.get(f"http://ipinfo.io/{ip}/json", timeout=5).json()
+    return requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
 
 
 st.title("Link Processor and Search")
@@ -56,7 +56,7 @@ if url:
         else:
             continue
         info = get_info(ip)
-        org = info["org"]
+        org = info.get("org", "Unknown")
         country = info["country"]
         orgs.add(org)
         countries.add(country)
