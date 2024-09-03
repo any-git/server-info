@@ -51,7 +51,7 @@ req_log = st.container()
 
 def get_info(ip):
     res_info = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
-    req_log.code(res_info)
+    print(res_info)
     return res_info
 
 
