@@ -45,12 +45,13 @@ def get_ip(address):
     try:
         return socket.gethostbyname(address)
     except socket.gaierror:
-        return address  # Return the original address if resolution fails
-
+        return address  # Return the original address if resolution fail
+    
+req_log = st.container()
 
 def get_info(ip):
     res_info = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
-    st.code(res_info)
+    req_log.code(res_info)
     return res_info
 
 
