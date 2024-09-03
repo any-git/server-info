@@ -4,9 +4,6 @@ import base64
 import streamlit as st
 import requests
 import socket
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import partial
-import time
 
 def trojanvless(link):
     try:
@@ -48,43 +45,27 @@ def get_ip(address):
     except socket.gaierror:
         return address  # Return the original address if resolution fails
 
+req_log = st.container()
+
 def get_info(ip):
     try:
         res_info = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
+        print(res_info)
         return res_info
     except:
         return {"org": "Unknown", "country": "Unknown"}
-
-def process_link(item):
-    addr = None
-    if item.startswith("vmess://"):
-        addr = vmess(item)
-    elif item.startswith("trojan://"):
-        addr = trojanvless(item)
-    elif item.startswith("ss://"):
-        addr = ss(item)
-
-    if addr:
-        ip = get_ip(addr)
-        info = get_info(ip)
-        org = info.get("org", "Unknown")
-        country = info.get("country", "Unknown")
-        return {"link": item, "org": org, "country": country, "ip": ip}
-    return None
 
 st.title("Link Processor and Search")
 
 url = st.text_input("URL")
 
 if url:
-    start_time = time.time()
     orgs = set()
     countries = set()
     results = []
-    
     if url.startswith("http://") or url.startswith("https://"):
         try:
-            req = requests.get(url, timeout=10)
+            req = requests.get(url, timeout=50)
             content = req.text
             items = content.splitlines()
         except:
@@ -93,18 +74,25 @@ if url:
     else:
         items = url.split()
 
-    # Use ThreadPoolExecutor for parallel processing
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_link = {executor.submit(process_link, item): item for item in items}
-        for future in as_completed(future_to_link):
-            result = future.result()
-            if result:
-                results.append(result)
-                orgs.add(result["org"])
-                countries.add(result["country"])
+    for item in items:
+        addr = None
+        if item.startswith("vmess://"):
+            addr = vmess(item)
+        elif item.startswith("trojan://"):
+            addr = trojanvless(item)
+        elif item.startswith("ss://"):
+            addr = ss(item)
 
-    end_time = time.time()
-    st.write(f"Processed {len(results)} valid links in {end_time - start_time:.2f} seconds")
+        if addr:
+            ip = get_ip(addr)
+            info = get_info(ip)
+            org = info.get("org", "Unknown")
+            country = info.get("country", "Unknown")
+            orgs.add(org)
+            countries.add(country)
+            results.append({"link": item, "org": org, "country": country, "ip": ip})
+
+    st.write(f"Processed {len(results)} valid links")
 
     # Search functionality
     st.sidebar.header("Search and Display Options")
