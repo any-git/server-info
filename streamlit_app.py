@@ -4,6 +4,9 @@ import base64
 import streamlit as st
 import requests
 import socket
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+import ipaddress
 
 
 def trojanvless(link):
@@ -50,38 +53,49 @@ def get_ip(address):
         return address  # Return the original address if resolution fails
 
 
-req_log = st.container()
-
-
 def get_info(ip):
     try:
         res_info = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
-        print(res_info)
         return res_info
     except:
         return {"org": "Unknown", "country": "Unknown"}
 
 
-st.title("Link Processor and Search")
+def check_proxy(ip, port, proxy_type):
+    proxies = {
+        "http": f"{proxy_type}://{ip}:{port}",
+        "https": f"{proxy_type}://{ip}:{port}",
+    }
+    try:
+        response = requests.get("http://httpbin.org/ip", proxies=proxies, timeout=5)
+        return response.status_code == 200
+    except:
+        return False
 
-url = st.text_input("URL")
 
-if url:
-    orgs = set()
-    countries = set()
-    results = []
-    if url.startswith("http://") or url.startswith("https://"):
+def process_link(item, link_type):
+    if link_type == "proxy":
         try:
-            req = requests.get(url, timeout=50)
-            content = req.text
-            items = content.splitlines()
+            ip, port = item.split(":")
+            port = port.split("#")[0]  # Remove any comments after the port
+            proxy_type = st.session_state.proxy_type
+            is_valid_ip = ipaddress.ip_address(
+                ip
+            )  # This will raise an exception if IP is invalid
+            info = get_info(ip)
+            is_available = check_proxy(ip, port, proxy_type)
+            return {
+                "link": item,
+                "org": info.get("org", "Unknown"),
+                "country": info.get("country", "Unknown"),
+                "ip": ip,
+                "port": port,
+                "proxy_type": proxy_type,
+                "is_available": is_available,
+            }
         except:
-            st.error("Failed to fetch the URL. Please check the URL and try again.")
-            items = []
+            return None
     else:
-        items = url.split()
-
-    for item in items:
         addr = None
         if item.startswith("vmess://"):
             addr = vmess(item)
@@ -93,42 +107,94 @@ if url:
         if addr:
             ip = get_ip(addr)
             info = get_info(ip)
-            org = info.get("org", "Unknown")
-            country = info.get("country", "Unknown")
-            orgs.add(org)
-            countries.add(country)
-            results.append({"link": item, "org": org, "country": country, "ip": ip})
+            return {
+                "link": item,
+                "org": info.get("org", "Unknown"),
+                "country": info.get("country", "Unknown"),
+                "ip": ip,
+            }
+    return None
 
-    st.write(f"Processed {len(results)} valid links")
 
-    # Search functionality
-    st.sidebar.header("Search and Display Options")
-    search_org = st.sidebar.selectbox("Select Organization", ["All"] + list(orgs))
-    search_country = st.sidebar.selectbox("Select Country", ["All"] + list(countries))
-    display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
+st.title("Link Processor and Proxy Checker")
 
-    # Filter results
-    filtered_results = results
-    if search_org != "All":
-        filtered_results = [r for r in filtered_results if r["org"] == search_org]
-    if search_country != "All":
-        filtered_results = [
-            r for r in filtered_results if r["country"] == search_country
-        ]
+link_type = st.radio("Select link type", ["VPN/SS", "Proxy"])
 
-    # Display results
-    st.header("Results")
-    if display_type == "Detailed":
-        for result in filtered_results:
+if link_type == "Proxy":
+    st.session_state.proxy_type = st.selectbox(
+        "Select proxy type", ["http", "https", "socks5"]
+    )
+
+url = st.text_area("Enter URLs or proxy addresses (one per line)")
+
+if url:
+    start_time = time.time()
+    orgs = set()
+    countries = set()
+    results = []
+
+    items = url.split("\n")
+
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_link = {
+            executor.submit(process_link, item.strip(), link_type): item
+            for item in items
+            if item.strip()
+        }
+        for future in as_completed(future_to_link):
+            result = future.result()
+            if result:
+                results.append(result)
+                orgs.add(result["org"])
+                countries.add(result["country"])
+
+    end_time = time.time()
+    st.write(
+        f"Processed {len(results)} valid links in {end_time - start_time:.2f} seconds"
+    )
+
+    if link_type == "VPN/SS":
+        # Search functionality
+        st.sidebar.header("Search and Display Options")
+        search_org = st.sidebar.selectbox("Select Organization", ["All"] + list(orgs))
+        search_country = st.sidebar.selectbox(
+            "Select Country", ["All"] + list(countries)
+        )
+        display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
+
+        # Filter results
+        filtered_results = results
+        if search_org != "All":
+            filtered_results = [r for r in filtered_results if r["org"] == search_org]
+        if search_country != "All":
+            filtered_results = [
+                r for r in filtered_results if r["country"] == search_country
+            ]
+
+        # Display results
+        st.header("Results")
+        if display_type == "Detailed":
+            for result in filtered_results:
+                st.write(f"Organization: {result['org']}")
+                st.write(f"Country: {result['country']}")
+                st.write(f"IP Address: {result['ip']}")
+                st.code(result["link"])
+                st.markdown("---")
+        else:  # Raw display
+            raw_links = "\n".join([r["link"] for r in filtered_results])
+            encoded_links = base64.b64encode(raw_links.encode()).decode()
+            st.code(encoded_links, language="text")
+    else:  # Proxy results
+        st.header("Proxy Results")
+        for result in results:
+            st.write(f"IP: {result['ip']}")
+            st.write(f"Port: {result['port']}")
+            st.write(f"Type: {result['proxy_type']}")
             st.write(f"Organization: {result['org']}")
             st.write(f"Country: {result['country']}")
-            st.write(f"IP Address: {result['ip']}")
-            st.code(result["link"])
+            st.write(f"Available: {'Yes' if result['is_available'] else 'No'}")
             st.markdown("---")
-    else:  # Raw display
-        raw_links = "\n".join([r["link"] for r in filtered_results])
-        encoded_links = base64.b64encode(raw_links.encode()).decode()
-        st.code(encoded_links, language="text")
 
 else:
-    st.write("Please enter a URL to process.")
+    st.write("Please enter URLs or proxy addresses to process.")
