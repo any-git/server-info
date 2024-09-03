@@ -3,6 +3,7 @@ import json
 import base64
 import streamlit as st
 import requests
+import socket
 
 
 def trojanvless(link):
@@ -17,7 +18,6 @@ def vmess(link):
     decoded = base64.b64decode(inf).decode("utf-8")
     data = json.loads(decoded)
     addr = data["add"]
-    st.code(data)
     return addr
 
 
@@ -27,6 +27,13 @@ def ss(link):
     decoded = base64.b64decode(inf).decode()
     ipport = decoded.split("@")[1]
     return ipport.split(":")[0]
+
+
+def get_ip(address):
+    try:
+        return socket.gethostbyname(address)
+    except socket.gaierror:
+        return address  # Return the original address if resolution fails
 
 
 def get_info(ip):
@@ -52,19 +59,21 @@ if url:
 
     for item in items:
         if item.startswith("vmess://"):
-            ip = vmess(item)
+            addr = vmess(item)
         elif item.startswith("trojan://"):
-            ip = trojanvless(item)
+            addr = trojanvless(item)
         elif item.startswith("ss://"):
-            ip = ss(item)
+            addr = ss(item)
         else:
             continue
+
+        ip = get_ip(addr)
         info = get_info(ip)
         org = info.get("org", "Unknown")
         country = info.get("country", "Unknown")
         orgs.add(org)
         countries.add(country)
-        results.append({"link": item, "org": org, "country": country})
+        results.append({"link": item, "org": org, "country": country, "ip": ip})
 
     st.write(f"Processed {len(results)} links")
 
@@ -87,6 +96,7 @@ if url:
     for result in filtered_results:
         st.write(f"Organization: {result['org']}")
         st.write(f"Country: {result['country']}")
+        st.write(f"IP Address: {result['ip']}")
         st.code(result["link"])
         st.markdown("---")
 
