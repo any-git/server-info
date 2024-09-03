@@ -22,12 +22,22 @@ def vmess(link):
 
 
 def ss(link):
-    inf = link.replace("ss://", "")
-    inf = inf.split("#")[0]
-    decoded = base64.b64decode(inf).decode()
-    ipport = decoded.split("@")[1]
-    return ipport.split(":")[0]
-
+    parsed = urlparse(link)
+    if parsed.netloc:
+        # If netloc is present, the address is after the '@'
+        parts = parsed.netloc.split('@')
+        if len(parts) > 1:
+            return parts[1].split(':')[0]
+    
+    # If we couldn't find the address, try decoding
+    try:
+        inf = link.replace("ss://", "")
+        inf = inf.split("#")[0]
+        decoded = base64.b64decode(inf).decode()
+        ipport = decoded.split("@")[1]
+        return ipport.split(":")[0]
+    except:
+        # If decoding 
 
 def get_ip(address):
     try:
