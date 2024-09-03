@@ -14,7 +14,7 @@ def trojanvless(link):
 
 def vmess(link):
     inf = link.replace("vmess://", "")
-    decoded = base64.b64decode(inf).decode()
+    decoded = base64.b64decode(inf).decode("utf-8")
     data = json.loads(decoded)
     return data["add"]
 
