@@ -4,7 +4,6 @@ import json
 import base64
 import requests
 import socket
-import re
 
 def trojanvless(link):
     try:
@@ -54,62 +53,30 @@ def get_info(ip):
     except:
         return {"org": "Unknown", "country": "Unknown"}
 
-def is_base64(s):
-    try:
-        return base64.b64encode(base64.b64decode(s)).decode() == s
-    except Exception:
-        return False
-
-def process_input(input_data):
-    if input_data.startswith("http://") or input_data.startswith("https://"):
-        try:
-            req = requests.get(input_data, timeout=50)
-            content = req.text
-            return process_content(content)
-        except Exception as e:
-            st.error(f"Failed to fetch the URL. Error: {str(e)}")
-            return []
-    else:
-        return process_content(input_data)
-
-def process_content(content):
-    links = extract_links(content)
-    if links:
-        return links
-    elif is_base64(content):
-        try:
-            decoded = base64.b64decode(content).decode('utf-8')
-            return extract_links(decoded)
-        except Exception as e:
-            st.warning(f"Failed to decode base64 content. Error: {str(e)}")
-            return []
-    else:
-        st.warning("No valid links or base64 content found.")
-        return []
-
-def extract_links(text):
-    links = re.findall(r'(vmess|trojan|vless|ss)://\S+', text)
-    if not links:
-        st.warning(f"No links found in the content. Content preview: {text[:100]}...")
-    return links
-
 st.title("Link Processor and Search")
 
-url = st.text_input("Enter URL, base64 encoded data, or raw links")
+url = st.text_input("URL")
 
 if url:
-    items = process_input(url)
-    st.write(f"Found {len(items)} potential links")
-    
     orgs = set()
     countries = set()
     results = []
+    if url.startswith("http://") or url.startswith("https://"):
+        try:
+            req = requests.get(url, timeout=50)
+            content = req.text
+            items = content.splitlines()
+        except:
+            st.error("Failed to fetch the URL. Please check the URL and try again.")
+            items = []
+    else:
+        items = url.split()
 
     for item in items:
         addr = None
         if item.startswith("vmess://"):
             addr = vmess(item)
-        elif item.startswith("trojan://") or item.startswith("vless://"):
+        elif item.startswith("trojan://"):
             addr = trojanvless(item)
         elif item.startswith("ss://"):
             addr = ss(item)
@@ -122,54 +89,50 @@ if url:
             orgs.add(org)
             countries.add(country)
             results.append({"link": item, "org": org, "country": country, "ip": ip})
-        else:
-            st.warning(f"Failed to process link: {item}")
 
-    if results:
-        st.write(f"Processed {len(results)} valid links")
+    st.write(f"Processed {len(results)} valid links")
 
-        # Search functionality
-        st.sidebar.header("Search and Display Options")
-        search_org = st.sidebar.selectbox("Select Organization", ["All"] + sorted(list(orgs)))
-        search_country = st.sidebar.selectbox("Select Country", ["All"] + sorted(list(countries)))
-        display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
+    # Search functionality
+    st.sidebar.header("Search and Display Options")
+    search_org = st.sidebar.selectbox("Select Organization", ["All"] + sorted(list(orgs)))
+    search_country = st.sidebar.selectbox("Select Country", ["All"] + sorted(list(countries)))
+    display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
 
-        # Filter results
-        filtered_results = results
-        if search_org != "All":
-            filtered_results = [r for r in filtered_results if r["org"] == search_org]
-        if search_country != "All":
-            filtered_results = [r for r in filtered_results if r["country"] == search_country]
+    # Filter results
+    filtered_results = results
+    if search_org != "All":
+        filtered_results = [r for r in filtered_results if r["org"] == search_org]
+    if search_country != "All":
+        filtered_results = [r for r in filtered_results if r["country"] == search_country]
 
-        # Display results
-        st.header("Results")
-        if display_type == "Detailed":
-            for result in filtered_results:
-                st.write(f"Organization: {result['org']}")
-                st.write(f"Country: {result['country']}")
-                st.write(f"IP Address: {result['ip']}")
-                st.code(result["link"])
-                st.markdown("---")
-        else:  # Raw display
-            raw_links = "\n".join([r["link"] for r in filtered_results])
-            st.text_area("Raw Links", raw_links, height=300)
-            encoded_links = base64.b64encode(raw_links.encode()).decode()
-            st.code(encoded_links, language="text")
+    # Display results
+    st.header("Results")
+    if display_type == "Detailed":
+        for result in filtered_results:
+            st.write(f"Organization: {result['org']}")
+            st.write(f"Country: {result['country']}")
+            st.write(f"IP Address: {result['ip']}")
+            st.code(result["link"])
+            st.markdown("---")
+    else:  # Raw display
+        raw_links = "\n".join([r["link"] for r in filtered_results])
+        st.text_area("Raw Links", raw_links, height=300)
+        encoded_links = base64.b64encode(raw_links.encode()).decode()
+        st.code(encoded_links, language="text")
 
-        # Add download buttons
-        st.sidebar.download_button(
-            label="Download Raw Links",
-            data=raw_links,
-            file_name="raw_links.txt",
-            mime="text/plain"
-        )
-        st.sidebar.download_button(
-            label="Download Encoded Links",
-            data=encoded_links,
-            file_name="encoded_links.txt",
-            mime="text/plain"
-        )
-    else:
-        st.warning("No valid links found. Please check your input and try again.")
+    # Add download buttons
+    st.sidebar.download_button(
+        label="Download Raw Links",
+        data=raw_links,
+        file_name="raw_links.txt",
+        mime="text/plain"
+    )
+    st.sidebar.download_button(
+        label="Download Encoded Links",
+        data=encoded_links,
+        file_name="encoded_links.txt",
+        mime="text/plain"
+    )
+
 else:
-    st.write("Please enter a URL, base64 encoded data, or raw links to process.")
+    st.write("Please enter a URL to process.")
