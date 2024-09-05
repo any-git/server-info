@@ -66,21 +66,22 @@ def process_input(input_data):
             req = requests.get(input_data, timeout=50)
             content = req.text
             return process_content(content)
-        except:
-            st.error("Failed to fetch the URL. Please check the URL and try again.")
+        except Exception as e:
+            st.error(f"Failed to fetch the URL. Error: {str(e)}")
             return []
     else:
         return process_content(input_data)
 
 def process_content(content):
-    if re.search(r'(vmess|trojan|vless|ss)://', content):
-        return extract_links(content)
+    links = extract_links(content)
+    if links:
+        return links
     elif is_base64(content):
         try:
             decoded = base64.b64decode(content).decode('utf-8')
             return extract_links(decoded)
-        except:
-            st.warning("Failed to decode base64 content.")
+        except Exception as e:
+            st.warning(f"Failed to decode base64 content. Error: {str(e)}")
             return []
     else:
         st.warning("No valid links or base64 content found.")
@@ -88,6 +89,8 @@ def process_content(content):
 
 def extract_links(text):
     links = re.findall(r'(vmess|trojan|vless|ss)://\S+', text)
+    if not links:
+        st.warning(f"No links found in the content. Content preview: {text[:100]}...")
     return links
 
 st.title("Link Processor and Search")
@@ -96,6 +99,8 @@ url = st.text_input("Enter URL, base64 encoded data, or raw links")
 
 if url:
     items = process_input(url)
+    st.write(f"Found {len(items)} potential links")
+    
     orgs = set()
     countries = set()
     results = []
@@ -117,6 +122,8 @@ if url:
             orgs.add(org)
             countries.add(country)
             results.append({"link": item, "org": org, "country": country, "ip": ip})
+        else:
+            st.warning(f"Failed to process link: {item}")
 
     if results:
         st.write(f"Processed {len(results)} valid links")
