@@ -119,20 +119,7 @@ if url:
         st.text_area("Raw Links", raw_links, height=300)
         encoded_links = base64.b64encode(raw_links.encode()).decode()
         st.code(encoded_links, language="text")
-
-    # Add download buttons
-    st.sidebar.download_button(
-        label="Download Raw Links",
-        data=raw_links,
-        file_name="raw_links.txt",
-        mime="text/plain"
-    )
-    st.sidebar.download_button(
-        label="Download Encoded Links",
-        data=encoded_links,
-        file_name="encoded_links.txt",
-        mime="text/plain"
-    )
+        st.code(raw_links, language="text")
 
 else:
     st.write("Please enter a URL to process.")
