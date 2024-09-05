@@ -73,7 +73,6 @@ def process_input(input_data):
         return process_content(input_data)
 
 def process_content(content):
-    # Check if content contains any of the required link types
     if re.search(r'(vmess|trojan|vless|ss)://', content):
         return extract_links(content)
     elif is_base64(content):
@@ -119,49 +118,51 @@ if url:
             countries.add(country)
             results.append({"link": item, "org": org, "country": country, "ip": ip})
 
-    st.write(f"Processed {len(results)} valid links")
+    if results:
+        st.write(f"Processed {len(results)} valid links")
 
-    # Search functionality
-    st.sidebar.header("Search and Display Options")
-    search_org = st.sidebar.selectbox("Select Organization", ["All"] + sorted(list(orgs)))
-    search_country = st.sidebar.selectbox("Select Country", ["All"] + sorted(list(countries)))
-    display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
+        # Search functionality
+        st.sidebar.header("Search and Display Options")
+        search_org = st.sidebar.selectbox("Select Organization", ["All"] + sorted(list(orgs)))
+        search_country = st.sidebar.selectbox("Select Country", ["All"] + sorted(list(countries)))
+        display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
 
-    # Filter results
-    filtered_results = results
-    if search_org != "All":
-        filtered_results = [r for r in filtered_results if r["org"] == search_org]
-    if search_country != "All":
-        filtered_results = [r for r in filtered_results if r["country"] == search_country]
+        # Filter results
+        filtered_results = results
+        if search_org != "All":
+            filtered_results = [r for r in filtered_results if r["org"] == search_org]
+        if search_country != "All":
+            filtered_results = [r for r in filtered_results if r["country"] == search_country]
 
-    # Display results
-    st.header("Results")
-    if display_type == "Detailed":
-        for result in filtered_results:
-            st.write(f"Organization: {result['org']}")
-            st.write(f"Country: {result['country']}")
-            st.write(f"IP Address: {result['ip']}")
-            st.code(result["link"])
-            st.markdown("---")
-    else:  # Raw display
-        raw_links = "\n".join([r["link"] for r in filtered_results])
-        st.text_area("Raw Links", raw_links, height=300)
-        encoded_links = base64.b64encode(raw_links.encode()).decode()
-        st.code(encoded_links, language="text")
+        # Display results
+        st.header("Results")
+        if display_type == "Detailed":
+            for result in filtered_results:
+                st.write(f"Organization: {result['org']}")
+                st.write(f"Country: {result['country']}")
+                st.write(f"IP Address: {result['ip']}")
+                st.code(result["link"])
+                st.markdown("---")
+        else:  # Raw display
+            raw_links = "\n".join([r["link"] for r in filtered_results])
+            st.text_area("Raw Links", raw_links, height=300)
+            encoded_links = base64.b64encode(raw_links.encode()).decode()
+            st.code(encoded_links, language="text")
 
-    # Add download buttons
-    st.sidebar.download_button(
-        label="Download Raw Links",
-        data=raw_links,
-        file_name="raw_links.txt",
-        mime="text/plain"
-    )
-    st.sidebar.download_button(
-        label="Download Encoded Links",
-        data=encoded_links,
-        file_name="encoded_links.txt",
-        mime="text/plain"
-    )
-
+        # Add download buttons
+        st.sidebar.download_button(
+            label="Download Raw Links",
+            data=raw_links,
+            file_name="raw_links.txt",
+            mime="text/plain"
+        )
+        st.sidebar.download_button(
+            label="Download Encoded Links",
+            data=encoded_links,
+            file_name="encoded_links.txt",
+            mime="text/plain"
+        )
+    else:
+        st.warning("No valid links found. Please check your input and try again.")
 else:
     st.write("Please enter a URL, base64 encoded data, or raw links to process.")
