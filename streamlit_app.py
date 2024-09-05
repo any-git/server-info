@@ -4,6 +4,7 @@ import json
 import base64
 import requests
 import socket
+import re
 
 def trojanvless(link):
     try:
@@ -53,30 +54,58 @@ def get_info(ip):
     except:
         return {"org": "Unknown", "country": "Unknown"}
 
+def is_base64(s):
+    try:
+        return base64.b64encode(base64.b64decode(s)).decode() == s
+    except Exception:
+        return False
+
+def process_input(input_data):
+    if input_data.startswith("http://") or input_data.startswith("https://"):
+        try:
+            req = requests.get(input_data, timeout=50)
+            content = req.text
+            return process_content(content)
+        except:
+            st.error("Failed to fetch the URL. Please check the URL and try again.")
+            return []
+    else:
+        return process_content(input_data)
+
+def process_content(content):
+    # Check if content contains any of the required link types
+    if re.search(r'(vmess|trojan|vless|ss)://', content):
+        return extract_links(content)
+    elif is_base64(content):
+        try:
+            decoded = base64.b64decode(content).decode('utf-8')
+            return extract_links(decoded)
+        except:
+            st.warning("Failed to decode base64 content.")
+            return []
+    else:
+        st.warning("No valid links or base64 content found.")
+        return []
+
+def extract_links(text):
+    links = re.findall(r'(vmess|trojan|vless|ss)://\S+', text)
+    return links
+
 st.title("Link Processor and Search")
 
-url = st.text_input("URL")
+url = st.text_input("Enter URL, base64 encoded data, or raw links")
 
 if url:
+    items = process_input(url)
     orgs = set()
     countries = set()
     results = []
-    if url.startswith("http://") or url.startswith("https://"):
-        try:
-            req = requests.get(url, timeout=50)
-            content = req.text
-            items = content.splitlines()
-        except:
-            st.error("Failed to fetch the URL. Please check the URL and try again.")
-            items = []
-    else:
-        items = url.split()
 
     for item in items:
         addr = None
         if item.startswith("vmess://"):
             addr = vmess(item)
-        elif item.startswith("trojan://"):
+        elif item.startswith("trojan://") or item.startswith("vless://"):
             addr = trojanvless(item)
         elif item.startswith("ss://"):
             addr = ss(item)
@@ -135,4 +164,4 @@ if url:
     )
 
 else:
-    st.write("Please enter a URL to process.")
+    st.write("Please enter a URL, base64 encoded data, or raw links to process.")
