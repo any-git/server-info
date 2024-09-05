@@ -1,7 +1,7 @@
+import streamlit as st
 from urllib.parse import urlparse, unquote
 import json
 import base64
-import streamlit as st
 import requests
 import socket
 
@@ -45,12 +45,10 @@ def get_ip(address):
     except socket.gaierror:
         return address  # Return the original address if resolution fails
 
-req_log = st.container()
-
+@st.cache_data(ttl=3600)
 def get_info(ip):
     try:
         res_info = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5).json()
-        print(res_info)
         return res_info
     except:
         return {"org": "Unknown", "country": "Unknown"}
@@ -96,8 +94,8 @@ if url:
 
     # Search functionality
     st.sidebar.header("Search and Display Options")
-    search_org = st.sidebar.selectbox("Select Organization", ["All"] + list(orgs))
-    search_country = st.sidebar.selectbox("Select Country", ["All"] + list(countries))
+    search_org = st.sidebar.selectbox("Select Organization", ["All"] + sorted(list(orgs)))
+    search_country = st.sidebar.selectbox("Select Country", ["All"] + sorted(list(countries)))
     display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
 
     # Filter results
@@ -118,8 +116,23 @@ if url:
             st.markdown("---")
     else:  # Raw display
         raw_links = "\n".join([r["link"] for r in filtered_results])
+        st.text_area("Raw Links", raw_links, height=300)
         encoded_links = base64.b64encode(raw_links.encode()).decode()
         st.code(encoded_links, language="text")
+
+    # Add download buttons
+    st.sidebar.download_button(
+        label="Download Raw Links",
+        data=raw_links,
+        file_name="raw_links.txt",
+        mime="text/plain"
+    )
+    st.sidebar.download_button(
+        label="Download Encoded Links",
+        data=encoded_links,
+        file_name="encoded_links.txt",
+        mime="text/plain"
+    )
 
 else:
     st.write("Please enter a URL to process.")
