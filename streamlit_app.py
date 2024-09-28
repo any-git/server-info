@@ -5,6 +5,7 @@ import base64
 import requests
 import socket
 
+
 def trojanvless(link):
     try:
         parsed = urlparse(link)
@@ -13,6 +14,7 @@ def trojanvless(link):
         return ipport.split(":")[0]
     except:
         return None
+
 
 def vmess(link):
     try:
@@ -23,6 +25,7 @@ def vmess(link):
     except:
         return None
 
+
 def ss(link):
     try:
         parsed = urlparse(link)
@@ -30,7 +33,7 @@ def ss(link):
             parts = parsed.netloc.split("@")
             if len(parts) > 1:
                 return parts[1].split(":")[0]
-        
+
         inf = link.replace("ss://", "")
         inf = inf.split("#")[0]
         decoded = base64.b64decode(inf).decode()
@@ -39,11 +42,23 @@ def ss(link):
     except:
         return None
 
+
 def get_ip(address):
     try:
+        # Kiểm tra địa chỉ không rỗng và không quá dài
+        if not address or len(address) > 253:
+            raise ValueError("Address is either empty or too long")
+
+        # Kiểm tra từng label trong tên miền (mỗi phần cách nhau bởi dấu '.')
+        labels = address.split(".")
+        for label in labels:
+            if not (0 < len(label) < 64):
+                raise UnicodeError("Label empty or too long")
+
         return socket.gethostbyname(address)
-    except socket.gaierror:
-        return address  # Return the original address if resolution fails
+    except (socket.gaierror, UnicodeError, ValueError) as e:
+        return f"Error: {str(e)}"  # Trả lại thông báo lỗi cụ thể
+
 
 @st.cache_data(ttl=3600)
 def get_info(ip):
@@ -52,6 +67,7 @@ def get_info(ip):
         return res_info
     except:
         return {"org": "Unknown", "country": "Unknown"}
+
 
 st.title("Link Processor and Search")
 
@@ -94,8 +110,12 @@ if url:
 
     # Search functionality
     st.sidebar.header("Search and Display Options")
-    search_org = st.sidebar.selectbox("Select Organization", ["All"] + sorted(list(orgs)))
-    search_country = st.sidebar.selectbox("Select Country", ["All"] + sorted(list(countries)))
+    search_org = st.sidebar.selectbox(
+        "Select Organization", ["All"] + sorted(list(orgs))
+    )
+    search_country = st.sidebar.selectbox(
+        "Select Country", ["All"] + sorted(list(countries))
+    )
     display_type = st.sidebar.radio("Display Type", ["Detailed", "Raw"])
 
     # Filter results
@@ -103,7 +123,9 @@ if url:
     if search_org != "All":
         filtered_results = [r for r in filtered_results if r["org"] == search_org]
     if search_country != "All":
-        filtered_results = [r for r in filtered_results if r["country"] == search_country]
+        filtered_results = [
+            r for r in filtered_results if r["country"] == search_country
+        ]
 
     # Display results
     st.header("Results")
