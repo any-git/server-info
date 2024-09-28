@@ -45,11 +45,8 @@ def ss(link):
 
 def get_ip(address):
     try:
-        # Kiểm tra địa chỉ không rỗng và không quá dài
         if not address or len(address) > 253:
             raise ValueError("Address is either empty or too long")
-
-        # Kiểm tra từng label trong tên miền (mỗi phần cách nhau bởi dấu '.')
         labels = address.split(".")
         for label in labels:
             if not (0 < len(label) < 64):
@@ -57,7 +54,7 @@ def get_ip(address):
 
         return socket.gethostbyname(address)
     except (socket.gaierror, UnicodeError, ValueError) as e:
-        return f"Error: {str(e)}"  # Trả lại thông báo lỗi cụ thể
+        return f"Error: {str(e)}"
 
 
 @st.cache_data(ttl=3600)
